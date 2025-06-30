@@ -5,14 +5,13 @@
 
 
 int main(){
-    // Construir a árvore a partir do arquivo
-    no* raiz = construir_arvore_do_arquivo("in.txt");
+    const char* arquivo_entrada = "in.txt";
+    
+    no* raiz = construir_arvore_do_arquivo(arquivo_entrada);
     
     if (raiz != NULL) {
-        // Iniciar o simulador de terminal
-        iniciar_terminal(raiz);
+        iniciar_terminal(raiz, arquivo_entrada);
         
-        // Liberar toda a memória alocada antes de terminar
         printf("Liberando memoria...\n");
         liberar_no_recursivo(raiz);
         printf("Memoria liberada com sucesso!\n");
