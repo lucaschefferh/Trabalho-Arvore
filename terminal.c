@@ -129,17 +129,27 @@ no* construir_arvore_do_arquivo(const char* nome_arquivo) {
 void iniciar_terminal(no* raiz, const char* arquivo_entrada) {
     no* diretorio_atual = raiz;
     char comando[256];
+    HistoricoComandos historico;
+    inicializar_historico(&historico);
+    
+    // Limpar a tela ao iniciar o terminal para simular entrada em shell
+    comando_clear();
+    
     printf("=== Simulador de Terminal ===\n");
     printf("Digite 'help' para ver os comandos disponiveis\n");
     printf("Digite 'exit' para sair\n\n");
+    
     while (1) {
-        char* caminho = obter_caminho_completo(diretorio_atual);
-        printf("%s$ ", caminho);
-        free(caminho);
+        char* prompt = obter_prompt_colorido(diretorio_atual);
+        printf("%s", prompt);
+        free(prompt);
+        
         if (fgets(comando, sizeof(comando), stdin) == NULL) {
             break;
         }
+        
         comando[strcspn(comando, "\n")] = '\0';
+        
         if (strcmp(comando, "exit") == 0) {
             printf("Saindo do terminal...\n");
             printf("Salvando alteracoes no arquivo '%s'...\n", arquivo_entrada);
@@ -147,14 +157,19 @@ void iniciar_terminal(no* raiz, const char* arquivo_entrada) {
             printf("Alteracoes salvas com sucesso!\n");
             break;
         }
-        processar_comando(comando, &diretorio_atual, raiz);
+        
+        if (strlen(comando) > 0) {
+            adicionar_ao_historico(&historico, comando);
+        }
+        
+        processar_comando(comando, &diretorio_atual, raiz, &historico);
     }
 }
-void processar_comando(char* comando, no** diretorio_atual, no* raiz) {
+void processar_comando(char* comando, no** diretorio_atual, no* raiz, HistoricoComandos* historico) {
     char* cmd = strtok(comando, " ");
-    char* arg = strtok(NULL, ""); 
+    char* arg = strtok(NULL, "");
     if (cmd == NULL) {
-        return; 
+        return;
     }
     if (strcmp(cmd, "ls") == 0) {
         comando_ls(*diretorio_atual);
@@ -178,6 +193,8 @@ void processar_comando(char* comando, no** diretorio_atual, no* raiz) {
         comando_touch(arg, *diretorio_atual);
     } else if (strcmp(cmd, "clear") == 0) {
         comando_clear();
+    } else if (strcmp(cmd, "history") == 0) {
+        comando_history(arg, historico);
     } else {
         printf("Comando '%s' nao reconhecido. Digite 'help' para ver comandos disponiveis.\n", cmd);
     }
@@ -274,6 +291,7 @@ void comando_help() {
     printf("  rm <arquivo> - Remover arquivo (somente arquivos)\n");
     printf("  rmdir <pasta> - Remover pasta (somente pastas)\n");
     printf("  clear        - Limpar a tela do terminal\n");
+    printf("  history [n]  - Mostrar historico de comandos (padrao: 5)\n");
     printf("  help         - Mostrar esta ajuda\n");
     printf("  exit         - Sair do terminal (salva alteracoes automaticamente)\n");
 }
@@ -725,4 +743,72 @@ void salvar_arvore_no_arquivo(no* raiz, const char* nome_arquivo) {
     }
     escrever_caminhos_recursivo(raiz, "/", arquivo);
     fclose(arquivo);
+}
+
+void inicializar_historico(HistoricoComandos* historico) {
+    historico->total = 0;
+    historico->inicio = 0;
+}
+
+void adicionar_ao_historico(HistoricoComandos* historico, const char* comando) {
+    if (strlen(comando) == 0 || strcmp(comando, "history") == 0) {
+        return;
+    }
+    
+    int indice = (historico->inicio + historico->total) % MAX_HISTORY;
+    strncpy(historico->comandos[indice], comando, MAX_COMMAND_LENGTH - 1);
+    historico->comandos[indice][MAX_COMMAND_LENGTH - 1] = '\0';
+    
+    if (historico->total < MAX_HISTORY) {
+        historico->total++;
+    } else {
+        historico->inicio = (historico->inicio + 1) % MAX_HISTORY;
+    }
+}
+
+void comando_history(char* arg, HistoricoComandos* historico) {
+    int num_mostrar = 5;
+    
+    if (arg != NULL && strlen(arg) > 0) {
+        num_mostrar = atoi(arg);
+        if (num_mostrar <= 0) {
+            printf("Uso: history [numero]\n");
+            printf("Exemplo: history 10 (mostra os ultimos 10 comandos)\n");
+            return;
+        }
+    }
+    
+    if (historico->total == 0) {
+        printf("Nenhum comando no historico.\n");
+        return;
+    }
+    
+    if (num_mostrar > historico->total) {
+        num_mostrar = historico->total;
+    }
+    
+    printf("Historico dos ultimos %d comandos:\n", num_mostrar);
+    
+    int inicio_mostrar = historico->total - num_mostrar;
+    for (int i = 0; i < num_mostrar; i++) {
+        int indice = (historico->inicio + inicio_mostrar + i) % MAX_HISTORY;
+        printf("%3d  %s\n", inicio_mostrar + i + 1, historico->comandos[indice]);
+    }
+}
+
+char* obter_prompt_colorido(no* diretorio_atual) {
+    char* caminho_simples = obter_caminho_completo(diretorio_atual);
+    
+    size_t tamanho_necessario = strlen(caminho_simples) + strlen(BOLD_GREEN_COLOR) + strlen(RESET_COLOR) + 10;
+    char* prompt_colorido = (char*)malloc(tamanho_necessario);
+    
+    if (prompt_colorido == NULL) {
+        free(caminho_simples);
+        return strdup("$");
+    }
+    
+    sprintf(prompt_colorido, "%s%s%s$ ", BOLD_GREEN_COLOR, caminho_simples, RESET_COLOR);
+    
+    free(caminho_simples);
+    return prompt_colorido;
 }

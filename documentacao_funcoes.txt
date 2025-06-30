@@ -1,0 +1,488 @@
+===============================================================================
+                    DOCUMENTAÇÃO DAS FUNÇÕES - SIMULADOR DE TERMINAL
+===============================================================================
+
+Este documento explica todas as funções implementadas no simulador de terminal
+que utiliza uma estrutura de árvore para representar um sistema de arquivos.
+
+===============================================================================
+1. ESTRUTURAS DE DADOS
+===============================================================================
+
+typedef enum {
+    PASTA,
+    ARQUIVO
+} tipoNo;
+
+typedef struct no {
+    char* nome;                 // Nome do arquivo/pasta
+    tipoNo tipo;                // Tipo: PASTA ou ARQUIVO
+    struct no* primeiroFilho;   // Ponteiro para o primeiro filho
+    struct no* proxIrmao;       // Ponteiro para o próximo irmão
+    struct no* pai;             // Ponteiro para o nó pai
+} no;
+
+EXPLICAÇÃO:
+- A estrutura representa um nó da árvore que pode ser um arquivo ou pasta
+- Usa lista ligada para representar filhos (primeiroFilho + proxIrmao)
+- Mantém referência ao pai para facilitar navegação (cd ..)
+
+===============================================================================
+2. FUNÇÕES DE GERENCIAMENTO DA ÁRVORE
+===============================================================================
+
+no* criar_no(const char* nome, tipoNo tipo, no* pai)
+PROPÓSITO: Cria um novo nó na árvore
+PARÂMETROS: 
+  - nome: nome do arquivo/pasta
+  - tipo: PASTA ou ARQUIVO
+  - pai: ponteiro para o nó pai
+RETORNO: Ponteiro para o novo nó criado
+POR QUE EXISTE: Centraliza a criação de nós, garantindo inicialização correta
+                e alocação de memória segura
+
+-------------------------------------------------------------------------------
+
+void processar_caminho(no *raiz, char *caminho)
+PROPÓSITO: Processa um caminho do arquivo de entrada e cria a estrutura na árvore
+PARÂMETROS:
+  - raiz: nó raiz da árvore
+  - caminho: string com o caminho completo (ex: "/home/user/docs/file.txt")
+POR QUE EXISTE: Permite construir a árvore a partir de uma lista de caminhos,
+                criando automaticamente todos os diretórios intermediários
+
+-------------------------------------------------------------------------------
+
+void imprimir_arvore(no* no_atual, int nivel)
+PROPÓSITO: Imprime a árvore de forma hierárquica com indentação
+PARÂMETROS:
+  - no_atual: nó a partir do qual imprimir
+  - nivel: nível de indentação atual
+POR QUE EXISTE: Visualização da estrutura da árvore para debug e comando tree
+
+===============================================================================
+3. FUNÇÕES DE ARQUIVO
+===============================================================================
+
+char* ler_arquivo(const char *nome_ficheiro)
+PROPÓSITO: Lê todo o conteúdo de um arquivo para a memória
+PARÂMETROS: nome_ficheiro: caminho para o arquivo
+RETORNO: String com o conteúdo do arquivo
+POR QUE EXISTE: Carrega a lista de caminhos do arquivo de entrada para
+                construir a árvore do sistema de arquivos
+
+-------------------------------------------------------------------------------
+
+no* construir_arvore_do_arquivo(const char* nome_arquivo)
+PROPÓSITO: Constrói a árvore completa a partir de um arquivo de caminhos
+PARÂMETROS: nome_arquivo: arquivo contendo lista de caminhos
+RETORNO: Ponteiro para a raiz da árvore construída
+POR QUE EXISTE: Função principal para inicializar todo o sistema de arquivos
+                a partir de dados externos
+
+-------------------------------------------------------------------------------
+
+void salvar_arvore_no_arquivo(no* raiz, const char* nome_arquivo)
+PROPÓSITO: Salva toda a estrutura da árvore de volta no arquivo de entrada
+PARÂMETROS:
+  - raiz: nó raiz da árvore
+  - nome_arquivo: arquivo onde salvar os caminhos
+POR QUE EXISTE: Garante persistência das mudanças feitas com mkdir/rm
+
+-------------------------------------------------------------------------------
+
+void escrever_caminhos_recursivo(no* no_atual, char* caminho_atual, FILE* arquivo)
+PROPÓSITO: Função auxiliar recursiva para escrever todos os caminhos no arquivo
+PARÂMETROS:
+  - no_atual: nó sendo processado
+  - caminho_atual: caminho acumulado até este nó
+  - arquivo: ponteiro do arquivo aberto para escrita
+POR QUE EXISTE: Implementa a lógica recursiva para reconstruir todos os caminhos
+                da árvore de forma ordenada
+
+===============================================================================
+4. FUNÇÕES DO SIMULADOR DE TERMINAL
+===============================================================================
+
+void iniciar_terminal(no* raiz)
+PROPÓSITO: Inicia o loop principal do simulador de terminal
+PARÂMETROS: raiz: nó raiz do sistema de arquivos
+POR QUE EXISTE: Controla a interface do usuário, lendo comandos e processando-os
+                até que o usuário digite "exit"
+
+-------------------------------------------------------------------------------
+
+void processar_comando(char* comando, no** diretorio_atual, no* raiz)
+PROPÓSITO: Analisa e executa comandos digitados pelo usuário
+PARÂMETROS:
+  - comando: string com o comando completo
+  - diretorio_atual: ponteiro duplo para o diretório atual (pode ser modificado)
+  - raiz: nó raiz para comandos que precisam navegar desde a raiz
+POR QUE EXISTE: Centraliza o parsing e dispatch de todos os comandos do terminal
+
+===============================================================================
+5. COMANDOS IMPLEMENTADOS
+===============================================================================
+
+void comando_ls(no* diretorio_atual)
+PROPÓSITO: Lista o conteúdo do diretório atual
+SIMILAR AO: comando 'ls' do Linux/Unix
+POR QUE EXISTE: Permite ao usuário ver arquivos e pastas no diretório atual
+
+-------------------------------------------------------------------------------
+
+void comando_cd(char* caminho, no** diretorio_atual, no* raiz)
+PROPÓSITO: Muda o diretório atual
+CASOS ESPECIAIS:
+  - "cd .." -> volta para diretório pai
+  - "cd /" -> vai para raiz
+  - "cd nome" -> entra em subdiretório
+SIMILAR AO: comando 'cd' do Linux/Unix
+POR QUE EXISTE: Navegação básica pelo sistema de arquivos
+
+-------------------------------------------------------------------------------
+
+void comando_pwd(no* diretorio_atual)
+PROPÓSITO: Mostra o caminho completo do diretório atual
+SIMILAR AO: comando 'pwd' do Linux/Unix
+POR QUE EXISTE: Orienta o usuário sobre sua localização atual no sistema
+
+-------------------------------------------------------------------------------
+
+void comando_tree(no* diretorio_atual)
+PROPÓSITO: Mostra a estrutura hierárquica a partir do diretório atual
+SIMILAR AO: comando 'tree' do Linux/Unix
+POR QUE EXISTE: Visualização clara da estrutura de diretórios
+
+-------------------------------------------------------------------------------
+
+void comando_search(char* nome, no* raiz)
+PROPÓSITO: Busca arquivos/pastas por nome em toda a árvore
+CARACTERÍSTICAS: Busca case-insensitive e por substring
+POR QUE EXISTE: Facilita localização de arquivos em sistemas grandes
+
+-------------------------------------------------------------------------------
+
+void comando_mkdir(char* nome_pasta, no* diretorio_atual)
+PROPÓSITO: Cria uma nova pasta no diretório atual com verificação inteligente
+FUNCIONALIDADE INTELIGENTE:
+  - Detecta se o nome tem extensão (contém ponto)
+  - Se detectar extensão, pergunta se o usuário quer criar um arquivo
+  - Sugere usar 'touch' para criar arquivos
+  - Permite criar pasta mesmo com extensão se usuário confirmar
+VALIDAÇÕES:
+  - Nome não pode estar vazio
+  - Nome não pode conter caracteres especiais
+  - Não pode haver nome duplicado
+FLUXO INTELIGENTE:
+  - mkdir arquivo.txt → "Parece ser arquivo, use: touch arquivo.txt"
+  - Se usuário digitar 'y' → Cria pasta mesmo assim
+  - Se usuário digitar qualquer outra coisa → Cancela operação
+SIMILAR AO: comando 'mkdir' do Linux/Unix (com inteligência adicional)
+POR QUE EXISTE: Previne erros comuns e educa sobre uso correto de comandos
+
+-------------------------------------------------------------------------------
+
+void comando_touch(char* nome_arquivo, no* diretorio_atual)
+PROPÓSITO: Cria um novo arquivo no diretório atual
+FUNCIONALIDADE INTELIGENTE:
+  - Detecta automaticamente se tem extensão (presença de ponto)
+  - Informa o tipo do arquivo baseado na extensão (.txt, .py, .c, etc.)
+  - Avisa quando arquivo é criado sem extensão
+VALIDAÇÕES:
+  - Nome não pode estar vazio
+  - Nome não pode conter caracteres especiais
+  - Não pode haver nome duplicado
+EXEMPLOS: touch arquivo.txt, touch script.py, touch documento.doc
+SIMILAR AO: comando 'touch' do Linux/Unix
+POR QUE EXISTE: Permite criar arquivos facilmente com detecção automática de tipo
+
+-------------------------------------------------------------------------------
+
+void comando_rm(char* nome_arquivo, no* diretorio_atual)
+PROPÓSITO: Remove apenas ARQUIVOS do diretório atual
+RESTRIÇÕES: Só remove arquivos, não pastas
+VALIDAÇÕES: Verifica se o item é realmente um arquivo
+SIMILAR AO: comando 'rm' do Linux/Unix (apenas para arquivos)
+POR QUE EXISTE: Permite remover arquivos específicos do sistema
+
+-------------------------------------------------------------------------------
+
+void comando_rmdir(char* nome_pasta, no* diretorio_atual)
+PROPÓSITO: Remove apenas PASTAS (e todo seu conteúdo) do diretório atual
+RESTRIÇÕES: Só remove pastas, não arquivos
+VALIDAÇÕES: Verifica se o item é realmente uma pasta
+FUNCIONALIDADE: Remove recursivamente toda a subárvore
+SIMILAR AO: comando 'rmdir' ou 'rm -rf' do Linux/Unix
+POR QUE EXISTE: Permite remover diretórios completos com segurança de tipo
+
+-------------------------------------------------------------------------------
+
+void comando_clear()
+PROPÓSITO: Limpa a tela do terminal
+IMPLEMENTAÇÃO: Usa códigos ANSI para limpar tela
+SIMILAR AO: comando 'clear' do Linux/Unix
+POR QUE EXISTE: Melhora a experiência do usuário limpando informações antigas
+
+-------------------------------------------------------------------------------
+
+void comando_help()
+PROPÓSITO: Mostra lista de comandos disponíveis e suas sintaxes
+POR QUE EXISTE: Ajuda o usuário a descobrir funcionalidades disponíveis
+
+===============================================================================
+6. FUNÇÕES AUXILIARES
+===============================================================================
+
+no* encontrar_diretorio(no* base, char* nome)
+PROPÓSITO: Procura um diretório filho com nome específico
+POR QUE EXISTE: Auxiliar para comando cd e outras operações de navegação
+
+-------------------------------------------------------------------------------
+
+char* obter_caminho_completo(no* no_atual)
+PROPÓSITO: Constrói o caminho completo desde a raiz até o nó atual
+POR QUE EXISTE: Usado pelo comando pwd para mostrar localização completa
+
+-------------------------------------------------------------------------------
+
+void mostrar_alternativas(no* diretorio_atual, char* nome_parcial)
+PROPÓSITO: Mostra pastas que começam com um nome parcial
+POR QUE EXISTE: Autocompletar e sugestões quando comando cd falha
+
+-------------------------------------------------------------------------------
+
+void buscar_recursivo(no* no_atual, char* nome_procurado, int* contador)
+PROPÓSITO: Busca recursiva por nome em toda a subárvore
+POR QUE EXISTE: Implementa a funcionalidade do comando search
+
+-------------------------------------------------------------------------------
+
+void liberar_no_recursivo(no* no_para_remover)
+PROPÓSITO: Libera memória de um nó e todos seus filhos recursivamente
+POR QUE EXISTE: Previne memory leaks ao remover pastas com comando rm
+
+===============================================================================
+7. FUNÇÕES CUSTOMIZADAS DE STRING
+===============================================================================
+
+int strcasecmp_custom(const char* s1, const char* s2)
+PROPÓSITO: Compara strings ignorando maiúsculas/minúsculas
+POR QUE EXISTE: Portabilidade - strcasecmp não é padrão ANSI C
+
+-------------------------------------------------------------------------------
+
+int strncasecmp_custom(const char* s1, const char* s2, size_t n)
+PROPÓSITO: Compara N caracteres de strings ignorando maiúsculas/minúsculas
+POR QUE EXISTE: Portabilidade - strncasecmp não é padrão ANSI C
+
+-------------------------------------------------------------------------------
+
+char* stristr_custom(const char* str, const char* substr)
+PROPÓSITO: Busca substring ignorando maiúsculas/minúsculas
+POR QUE EXISTE: Não existe versão case-insensitive padrão de strstr
+
+===============================================================================
+8. ARQUITETURA GERAL
+===============================================================================
+
+O sistema é estruturado em camadas:
+
+1. CAMADA DE DADOS: Estrutura de nós representando o sistema de arquivos
+2. CAMADA DE ENTRADA: Leitura de arquivo e parsing de caminhos
+3. CAMADA DE COMANDOS: Implementação dos comandos do terminal
+4. CAMADA DE INTERFACE: Loop principal e interação com usuário
+5. CAMADA AUXILIAR: Funções de apoio e utilitários
+
+VANTAGENS DA ARQUITETURA:
+- Modularidade: Cada função tem responsabilidade bem definida
+- Extensibilidade: Fácil adicionar novos comandos
+- Manutenibilidade: Separação clara entre funcionalidades
+- Reutilização: Funções auxiliares podem ser usadas por múltiplos comandos
+
+===============================================================================
+9. CONSIDERAÇÕES DE MEMÓRIA
+===============================================================================
+
+ALOCAÇÃO:
+- Cada nó aloca memória para nome (strdup)
+- Estrutura do nó (malloc)
+
+LIBERAÇÃO:
+- liberar_no_recursivo() garante limpeza completa
+- Comando rm libera memória adequadamente
+- Strings são liberadas junto com nós
+
+POTENCIAIS MELHORAS:
+- Pool de memória para melhor performance
+- Garbage collection automático
+- Detecção de vazamentos de memória
+
+===============================================================================
+10. FUNCIONALIDADE DE PERSISTÊNCIA OTIMIZADA
+===============================================================================
+
+O sistema implementa uma estratégia inteligente de persistência que otimiza
+performance separando operações em memória do salvamento no arquivo.
+
+NOVA ABORDAGEM:
+1. O sistema lê o arquivo de entrada (in.txt) e constrói a árvore em memória
+2. Durante a sessão, comandos rm, rmdir e mkdir modificam apenas a árvore em memória
+3. Quando o usuário digita "exit", TODAS as alterações são salvas automaticamente
+4. O arquivo original é sobrescrito com a nova estrutura completa
+
+SEPARAÇÃO DE COMANDOS:
+- **rm**: Remove apenas ARQUIVOS (não pastas)
+- **rmdir**: Remove apenas PASTAS (e todo conteúdo recursivamente)
+- **mkdir**: Cria apenas PASTAS
+
+VANTAGENS DA NOVA IMPLEMENTAÇÃO:
+✅ **Performance**: Operações em memória são muito mais rápidas
+✅ **Consistência**: Uma única operação de salvamento por sessão
+✅ **Segurança de Tipos**: Comandos específicos para arquivos vs pastas
+✅ **Atomicidade**: Ou todas as mudanças são salvas, ou nenhuma
+✅ **Simplicidade**: Usuário não se preocupa com salvamento durante uso
+
+FLUXO DE TRABALHO:
+```
+Início da Sessão:
+├── Carrega in.txt → Árvore em memória
+├── Usuário executa comandos (rm, rmdir, mkdir, etc.)
+├── Modificações ficam apenas em memória
+└── "exit" → Salva tudo de uma vez → Termina programa
+```
+
+IMPLEMENTAÇÃO TÉCNICA:
+- iniciar_terminal(): Detecta comando "exit" e chama salvamento
+- salvar_arvore_no_arquivo(): Reescreve arquivo completo
+- escrever_caminhos_recursivo(): Gera todos os caminhos da árvore atual
+
+SEGURANÇA:
+- Backup do arquivo original seria uma melhoria futura
+- Validação de escrita bem-sucedida
+- Rollback em caso de erro de gravação
+
+EXEMPLO DE USO:
+```
+$ ./main
+/$ mkdir nova_pasta        # Modificação em memória
+/$ rmdir pasta_antiga      # Modificação em memória  
+/$ rm arquivo.txt          # Modificação em memória
+/$ exit                    # ← AGORA todas as mudanças são salvas!
+Salvando alterações no arquivo 'in.txt'...
+Alterações salvas com sucesso!
+```
+
+===============================================================================
+11. DETECÇÃO AUTOMÁTICA DE TIPO DE ARQUIVO
+===============================================================================
+
+O comando `touch` implementa uma funcionalidade inteligente de detecção
+automática do tipo de arquivo baseada na extensão fornecida.
+
+COMO FUNCIONA A DETECÇÃO:
+1. O sistema analisa o nome do arquivo procurando por um ponto (.)
+2. Se encontrar um ponto, considera que há uma extensão
+3. Extrai e mostra a extensão detectada (.txt, .py, .c, etc.)
+4. Se não encontrar ponto, avisa que o arquivo será criado sem extensão
+
+EXEMPLOS DE USO:
+```
+/$ touch documento.txt
+Arquivo 'documento.txt' criado com sucesso (tipo: .txt).
+
+/$ touch script.py  
+Arquivo 'script.py' criado com sucesso (tipo: .py).
+
+/$ touch programa.c
+Arquivo 'programa.c' criado com sucesso (tipo: .c).
+
+/$ touch arquivo_sem_extensao
+Aviso: Arquivo 'arquivo_sem_extensao' sera criado sem extensao.
+Sugestao: Use uma extensao como .txt, .c, .py, .doc, etc.
+Arquivo 'arquivo_sem_extensao' criado com sucesso (sem extensao).
+```
+
+TIPOS DE ARQUIVO COMUNS SUPORTADOS:
+- **Texto**: .txt, .doc, .docx, .rtf
+- **Programação**: .c, .cpp, .py, .java, .js, .html, .css
+- **Dados**: .json, .xml, .csv, .sql
+- **Imagem**: .jpg, .png, .gif, .bmp
+- **E qualquer outra extensão**
+
+VANTAGENS DA FUNCIONALIDADE:
+✅ **Feedback Inteligente**: Usuário sabe exatamente que tipo de arquivo criou
+✅ **Sugestões Úteis**: Sistema sugere usar extensões quando apropriado
+✅ **Flexibilidade**: Permite criar arquivos com ou sem extensão
+✅ **Educativo**: Ensina boas práticas de nomenclatura de arquivos
+
+IMPLEMENTAÇÃO TÉCNICA:
+- Usa `strchr()` para detectar presença de ponto
+- Usa `strrchr()` para extrair a última extensão
+- Validação de caracteres especiais para nomes de arquivo
+- Integração completa com sistema de persistência
+
+CASOS ESPECIAIS:
+- Arquivos com múltiplos pontos (ex: arquivo.backup.txt) → detecta .txt
+- Arquivos começando com ponto (ex: .gitignore) → detecta .gitignore
+- Nomes só com ponto no final (ex: arquivo.) → detecta extensão vazia
+
+===============================================================================
+12. SISTEMA EDUCATIVO E PREVENÇÃO DE ERROS
+===============================================================================
+
+O simulador implementa funcionalidades educativas que ajudam os usuários
+a aprender boas práticas e evitar erros comuns de nomenclatura.
+
+VERIFICAÇÃO INTELIGENTE NO MKDIR:
+Quando o usuário tenta criar uma pasta com nome que parece ser de arquivo
+(contém extensão), o sistema intervém educativamente.
+
+EXEMPLO DE INTERAÇÃO:
+```
+/$ mkdir documento.txt
+Aviso: O nome 'documento.txt' parece ser um arquivo (tem extensao .txt).
+Para criar um arquivo, use: touch documento.txt
+Para criar uma pasta mesmo assim, digite 'y' e pressione Enter.
+Para cancelar, digite qualquer outra tecla e pressione Enter.
+Sua escolha: n
+Operacao cancelada. Use 'touch documento.txt' para criar um arquivo.
+
+/$ touch documento.txt
+Arquivo 'documento.txt' criado com sucesso (tipo: .txt).
+```
+
+CASOS DETECTADOS:
+- **Documentos**: .txt, .doc, .pdf → Sugere touch
+- **Código**: .py, .c, .java, .js → Sugere touch  
+- **Dados**: .json, .xml, .csv → Sugere touch
+- **Qualquer extensão**: .qualquercoisa → Sugere touch
+
+OPÇÕES DO USUÁRIO:
+1. **Cancelar** (padrão): Digite qualquer coisa exceto 'y'
+   - Sistema sugere o comando touch correto
+2. **Forçar criação**: Digite 'y'
+   - Cria pasta mesmo com extensão (para casos especiais)
+
+BENEFÍCIOS EDUCATIVOS:
+✅ **Ensina comandos corretos**: touch para arquivos, mkdir para pastas
+✅ **Previne confusão**: Evita misturar arquivos e pastas
+✅ **Feedback construtivo**: Sempre sugere a alternativa correta
+✅ **Flexibilidade**: Permite override quando necessário
+✅ **Boas práticas**: Reforça convenções de nomenclatura
+
+IMPLEMENTAÇÃO TÉCNICA:
+- Detecção de ponto no nome usando loop simples
+- Interface interativa com fgets() para resposta do usuário
+- Validação de resposta (y/Y para confirmar, resto para cancelar)
+- Mensagens educativas claras e específicas
+
+CASOS ESPECIAIS:
+- Pastas com ponto no início (.git/) → Permitido sem aviso
+- Múltiplos pontos (arquivo.backup.txt) → Detecta como arquivo
+- Nome apenas com ponto (.) → Rejeitado como nome especial
+
+Esta funcionalidade torna o simulador não apenas funcional, mas também
+uma ferramenta de aprendizado sobre organização de sistemas de arquivos.
+
+===============================================================================

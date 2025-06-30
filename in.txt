@@ -9,9 +9,16 @@
 /Meus Documentos/fontes/main.c
 /Meus Documentos/fontes/main.h
 /Meus Documentos/imagens
+/Meus Documentos/teste
+/Meus Documentos/pasta_teste
+/Meus Documentos/arquivo_teste.txt
+/Meus Documentos/outra_pasta
+/Meus Documentos/outro_arquivo.txt
 /Meus Downloads
 /Meus Downloads/7zip.exe
 /Meus Downloads/t2.rar
 /nova_pasta
 /pasta
 /pasta/pasta.txt
+/test_folder
+/test_file.txt

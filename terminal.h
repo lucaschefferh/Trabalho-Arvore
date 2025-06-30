@@ -3,6 +3,20 @@ typedef enum{
     ARQUIVO
 }tipoNo;
 
+#define MAX_HISTORY 100
+#define MAX_COMMAND_LENGTH 256
+
+// Cores ANSI
+#define RESET_COLOR "\033[0m"
+#define GREEN_COLOR "\033[32m"
+#define BOLD_GREEN_COLOR "\033[1;32m"
+
+typedef struct {
+    char comandos[MAX_HISTORY][MAX_COMMAND_LENGTH];
+    int total;
+    int inicio;
+} HistoricoComandos;
+
 typedef struct no{
     char* nome;
     tipoNo tipo;
@@ -23,7 +37,7 @@ void salvar_arvore_no_arquivo(no* raiz, const char* nome_arquivo);
 void escrever_caminhos_recursivo(no* no_atual, char* caminho_atual, FILE* arquivo);
 
 void iniciar_terminal(no* raiz, const char* arquivo_entrada);
-void processar_comando(char* comando, no** diretorio_atual, no* raiz);
+void processar_comando(char* comando, no** diretorio_atual, no* raiz, HistoricoComandos* historico);
 
 void comando_ls(no* diretorio_atual);
 void comando_cd(char* caminho, no** diretorio_atual, no* raiz);
@@ -36,6 +50,11 @@ void comando_mkdir(char* nome_pasta, no* diretorio_atual);
 void comando_touch(char* nome_arquivo, no* diretorio_atual);
 void comando_clear();
 void comando_help();
+void comando_history(char* arg, HistoricoComandos* historico);
+
+void adicionar_ao_historico(HistoricoComandos* historico, const char* comando);
+void inicializar_historico(HistoricoComandos* historico);
+char* obter_prompt_colorido(no* diretorio_atual);
 
 no* encontrar_diretorio(no* base, char* nome);
 char* obter_caminho_completo(no* no_atual);
