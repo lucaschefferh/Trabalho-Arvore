@@ -1,147 +1,140 @@
+# Guia de Comandos e Funções da Interface do Terminal
 
+Este documento serve como uma referência técnica para os comandos disponíveis no simulador de terminal. Para cada comando, é explicado seu propósito, a função em C que o implementa e quais funções auxiliares são invocadas para completar sua execução.
 
------
+## Funções Principais da Interface
 
-# Simulador de Terminal em C
+Antes dos comandos individuais, é importante entender as duas funções que gerenciam o ciclo de vida da interface de linha de comando (CLI).
 
-Este projeto é uma implementação de um simulador de terminal de linha de comando em C. Ele gerencia uma estrutura de arquivos e pastas em memória usando uma árvore n-ária e permite que o usuário interaja com essa estrutura por meio de comandos comuns do Unix, como `ls`, `cd`, `mkdir`, `rm`, entre outros. As alterações na estrutura de arquivos podem ser salvas em um arquivo de texto.
+### `void iniciar_terminal(no* raiz, const char* arquivo_entrada)`
 
-## Conceito Central: A Estrutura de Árvore
+Esta é a função que dá início e mantém a sessão do terminal ativa.
 
-O núcleo do simulador é a representação do sistema de arquivos como uma árvore. Cada nó (`no`) na árvore pode ser um arquivo (`ARQUIVO`) ou uma pasta (`PASTA`). A árvore é implementada usando a representação "primeiro filho, próximo irmão" (first child, next sibling).
+* **Lógica:** Opera em um loop infinito (`while (1)`) que executa os seguintes passos:
+    1.  Exibe o prompt de comando, que inclui o caminho do diretório atual.
+    2.  Lê o comando inserido pelo usuário via `fgets`.
+    3.  Verifica se o comando é `exit`. Em caso afirmativo, salva o estado da árvore de arquivos e encerra o loop.
+    4.  Para qualquer outro comando, delega a execução para a função `processar_comando`.
+* **Funções Auxiliares Utilizadas:**
+    * `obter_caminho_completo()`: Para gerar a string do caminho atual exibida no prompt.
+    * `fgets()`: Para ler a entrada do usuário de forma segura.
+    * `processar_comando()`: Para rotear o comando lido para a função de implementação correta.
+    * `salvar_arvore_no_arquivo()`: Chamada especificamente quando o comando `exit` é inserido, para persistir os dados.
 
-  - `no* primeiroFilho`: Ponteiro para o primeiro filho direto do nó.
-  - `no* proxIrmao`: Ponteiro para o próximo nó no mesmo nível hierárquico (um "irmão").
-  - `no* pai`: Ponteiro para o nó pai, essencial para comandos como `cd ..`.
+### `void processar_comando(char* comando, no** diretorio_atual, no* raiz)`
 
-Essa estrutura permite que um nó (pasta) tenha um número variável de filhos sem a necessidade de um array de ponteiros de tamanho dinâmico.
+Atua como um roteador (ou *dispatcher*). Sua única função é analisar a string de comando e chamar a função `comando_*` correspondente.
 
-```c
-typedef enum {
-    PASTA,
-    ARQUIVO
-} tipoNo;
+* **Lógica:**
+    1.  Usa `strtok` para separar a primeira palavra (o comando) do restante da string (os argumentos).
+    2.  Usa uma série de comparações (`if-else if`) para determinar qual função específica deve ser chamada com base no comando.
+* **Funções Auxiliares Utilizadas:**
+    * `strtok()`: Para dividir a entrada do usuário em comando e argumentos.
+    * `strcmp()`: Para comparar o comando com a lista de comandos disponíveis.
 
-typedef struct no {
-    char* nome;
-    tipoNo tipo;
-    struct no* pai;
-    struct no* primeiroFilho;
-    struct no* proxIrmao;
-} no;
-```
+---
 
------
+## Catálogo de Comandos
 
-## Principais Funções e Lógica
+A seguir, a lista de todos os comandos implementados, suas funções e dependências.
 
-A seguir, uma explicação detalhada das funções mais importantes que impulsionam o simulador.
+### `ls`
 
-### 1\. Construção da Árvore a Partir de um Arquivo
+* **Descrição:** Lista os arquivos e pastas contidos no diretório atual.
+* **Função de Implementação:** `void comando_ls(no* diretorio_atual)`
+* **Lógica:** Percorre a lista de filhos do `diretorio_atual` (iniciando em `primeiroFilho` e seguindo os ponteiros `proxIrmao`), imprimindo o nome de cada nó e indicando se é um diretório (`[DIR]`) ou arquivo (`[FILE]`).
+* **Funções Auxiliares Utilizadas:** Nenhuma função auxiliar complexa é chamada, apenas operações diretas nos ponteiros do nó.
 
-A inicialização do sistema de arquivos é feita lendo um arquivo de texto onde cada linha representa um caminho completo.
+### `cd <dir>`
 
-#### `no* construir_arvore_do_arquivo(const char* nome_arquivo)`
+* **Descrição:** Altera o diretório de trabalho atual para o especificado. Aceita `..` para voltar ao diretório pai e `/` para ir à raiz.
+* **Função de Implementação:** `void comando_cd(char* caminho, no** diretorio_atual, no* raiz)`
+* **Lógica:** Trata os casos especiais (`..` e `/`) e, para outros caminhos, busca por um subdiretório com o nome correspondente. Se não encontrar, sugere alternativas.
+* **Funções Auxiliares Utilizadas:**
+    * `encontrar_diretorio()`: Para procurar um subdiretório com o nome especificado no diretório atual.
+    * `mostrar_alternativas()`: Chamada se `encontrar_diretorio` falhar, para sugerir pastas com nomes similares.
+    * `strcasecmp_custom()`: Usada dentro de `encontrar_diretorio` para a busca de diretório sem diferenciar maiúsculas/minúsculas.
 
-**Propósito:** Ler um arquivo de texto contendo caminhos e construir a estrutura de árvore em memória correspondente.
+### `pwd`
 
-**Como funciona:**
+* **Descrição:** Exibe o caminho completo do diretório de trabalho atual.
+* **Função de Implementação:** `void comando_pwd(no* diretorio_atual)`
+* **Lógica:** Simplesmente invoca a função que constrói a string do caminho e a imprime.
+* **Funções Auxiliares Utilizadas:**
+    * `obter_caminho_completo()`: Para gerar a string do caminho completo a partir do nó do diretório atual.
 
-1.  **Leitura do Arquivo:** A função primeiro chama `ler_arquivo` para carregar todo o conteúdo do arquivo de entrada para uma única string na memória.
-2.  **Criação da Raiz:** Cria o nó raiz da árvore, que representa o diretório `/`.
-3.  **Processamento Linha a Linha:** Itera sobre a string lida, tratando cada linha como um caminho completo (ex: `documentos/trabalhos/relatorio.docx`).
-4.  **Delegação:** Para cada linha (caminho), ela chama a função `processar_caminho` para que os nós correspondentes sejam criados e inseridos na árvore.
-5.  **Limpeza:** Após o processamento de todas as linhas, a string que continha o conteúdo do arquivo é liberada da memória.
+### `tree`
 
-#### `void processar_caminho(no *raiz, char *caminho)`
+* **Descrição:** Exibe a estrutura de arquivos e pastas de forma hierárquica (árvore) a partir do diretório atual.
+* **Função de Implementação:** `void comando_tree(no* diretorio_atual)`
+* **Lógica:** Inicia a impressão da árvore, chamando a função recursiva responsável pela exibição.
+* **Funções Auxiliares Utilizadas:**
+    * `imprimir_arvore()`: Função recursiva que percorre a árvore a partir do `diretorio_atual` e imprime cada nó com a indentação correta.
 
-**Propósito:** Analisar um caminho (ex: `fotos/ferias/praia.jpg`) e criar os nós de pasta e/ou arquivo correspondentes na árvore.
+### `search <nome>`
 
-**Como funciona:**
+* **Descrição:** Busca por arquivos ou pastas cujo nome contenha o termo de busca, a partir da raiz (`/`). A busca não diferencia maiúsculas de minúsculas.
+* **Função de Implementação:** `void comando_search(char* nome, no* raiz)`
+* **Lógica:** Prepara a busca e chama a função recursiva que percorre toda a árvore.
+* **Funções Auxiliares Utilizadas:**
+    * `buscar_recursivo()`: Função recursiva que efetivamente percorre toda a árvore, verificando cada nó.
+    * `stristr_custom()`: Usada por `buscar_recursivo` para verificar se o nome do nó contém o termo de busca de forma insensível a maiúsculas/minúsculas.
+    * `obter_caminho_completo()`: Usada por `buscar_recursivo` para imprimir o caminho completo de cada resultado encontrado.
 
-1.  **Tokenização:** Utiliza a função `strtok` para dividir a string do caminho em "tokens" usando `/` como delimitador. Para `fotos/ferias/praia.jpg`, os tokens seriam `fotos`, `ferias` e `praia.jpg`.
-2.  **Navegação e Criação:** Começando pelo nó raiz, a função processa cada token:
-      * Ela verifica se já existe um filho com o nome do token no nó atual.
-      * **Se existe:** Ela navega para esse nó filho e continua o processo com o próximo token.
-      * **Se não existe:** Ela cria um novo nó chamando `criar_no`. O tipo do nó (`PASTA` ou `ARQUIVO`) é determinado pela presença de um `.` no nome do token. O novo nó é então adicionado à lista de filhos do nó atual.
-3.  **Construção Incremental:** Esse processo garante que a estrutura de diretórios seja construída de forma incremental e que caminhos compartilhados (como `/documentos/pessoal` e `/documentos/trabalho`) reutilizem os mesmos nós pais.
+### `mkdir <pasta>`
 
-### 2\. O Loop Principal do Terminal
+* **Descrição:** Cria uma nova pasta no diretório atual.
+* **Função de Implementação:** `void comando_mkdir(char* nome_pasta, no* diretorio_atual)`
+* **Lógica:** Valida o nome da pasta (contra caracteres inválidos e nomes existentes) e, se válido, cria um novo nó do tipo `PASTA` e o anexa à lista de filhos do diretório atual.
+* **Funções Auxiliares Utilizadas:**
+    * `strcasecmp_custom()`: Para verificar se já existe um arquivo ou pasta com o mesmo nome.
+    * `criar_no()`: Para alocar e inicializar a estrutura do novo nó.
 
-O coração interativo do programa, onde o usuário insere comandos.
+### `touch <arquivo>`
 
-#### `void iniciar_terminal(no* raiz, const char* arquivo_entrada)`
+* **Descrição:** Cria um novo arquivo vazio no diretório atual.
+* **Função de Implementação:** `void comando_touch(char* nome_arquivo, no* diretorio_atual)`
+* **Lógica:** Semelhante ao `mkdir`, mas cria um nó do tipo `ARQUIVO`. Valida o nome e verifica se já existe um item com o mesmo nome antes da criação.
+* **Funções Auxiliares Utilizadas:**
+    * `strcasecmp_custom()`: Para verificar se já existe um arquivo ou pasta com o mesmo nome.
+    * `criar_no()`: Para alocar e inicializar a estrutura do novo nó.
 
-**Propósito:** Gerenciar o ciclo de vida da sessão do terminal: exibir o prompt, ler comandos do usuário e processá-los até que o comando `exit` seja inserido.
+### `rm <arquivo>`
 
-**Como funciona:**
+* **Descrição:** Remove um arquivo do diretório atual. Não funciona para pastas.
+* **Função de Implementação:** `void comando_rm(char* nome_arquivo, no* diretorio_atual)`
+* **Lógica:** Procura por um filho com o nome especificado. Se encontrar e for do tipo `ARQUIVO`, ele ajusta os ponteiros da lista de irmãos para "pular" o nó a ser removido e, em seguida, libera a memória do nó.
+* **Funções Auxiliares Utilizadas:**
+    * `strcasecmp_custom()`: Para encontrar o arquivo a ser removido.
+    * `free()`: Para liberar a memória do nó e de seu nome.
 
-1.  **Loop Infinito:** Entra em um laço `while(1)`.
-2.  **Exibição do Prompt:** A cada iteração, chama `obter_caminho_completo` para obter a string do diretório atual e a exibe no formato ` caminho/atual$  `.
-3.  **Leitura do Comando:** Usa `fgets` para ler a linha de comando inserida pelo usuário.
-4.  **Comando `exit`:** Se o comando for `exit`, a função aciona a rotina de salvamento (`salvar_arvore_no_arquivo`) e encerra o loop, finalizando o programa.
-5.  **Delegação de Comando:** Para qualquer outro comando, ela chama `processar_comando` para executar a ação correspondente.
+### `rmdir <pasta>`
 
-#### `void processar_comando(char* comando, no** diretorio_atual, no* raiz)`
+* **Descrição:** Remove uma pasta (e todo o seu conteúdo) do diretório atual.
+* **Função de Implementação:** `void comando_rmdir(char* nome_pasta, no* diretorio_atual)`
+* **Lógica:** Procura por um filho com o nome especificado. Se encontrar e for do tipo `PASTA`, remove o nó da lista de irmãos e chama uma função recursiva para liberar a memória de todos os seus descendentes.
+* **Funções Auxiliares Utilizadas:**
+    * `strcasecmp_custom()`: Para encontrar a pasta a ser removida.
+    * `liberar_no_recursivo()`: Função recursiva crucial que navega por toda a sub-árvore da pasta a ser removida, liberando cada nó de baixo para cima para evitar vazamentos de memória.
 
-**Propósito:** Atuar como um "roteador" ou "dispatcher". Ele analisa o comando bruto do usuário e chama a função específica que implementa esse comando.
+### `clear`
 
-**Como funciona:**
+* **Descrição:** Limpa a tela do terminal.
+* **Função de Implementação:** `void comando_clear()`
+* **Lógica:** Imprime códigos de escape ANSI (`\033[2J\033[H`) que são interpretados pela maioria dos emuladores de terminal como um comando para limpar a tela e mover o cursor para o topo.
+* **Funções Auxiliares Utilizadas:** Nenhuma.
 
-1.  **Separação:** Usa `strtok` para separar o comando (a primeira palavra, ex: `cd`) de seus argumentos (o resto da linha, ex: `documentos`).
-2.  **Seleção:** Utiliza uma cadeia de `if-else if` para comparar a string do comando com os nomes dos comandos disponíveis (`ls`, `cd`, `mkdir`, etc.).
-3.  **Execução:** Ao encontrar uma correspondência, chama a função `comando_*` apropriada (ex: `comando_cd`), passando os argumentos e o ponteiro para o diretório atual (`diretorio_atual`). O ponteiro para o diretório atual é passado por referência (`no**`) porque funções como `cd` precisam modificá-lo.
+### `help`
 
-### 3\. Execução de Comandos
+* **Descrição:** Exibe uma lista de todos os comandos disponíveis e uma breve descrição de cada um.
+* **Função de Implementação:** `void comando_help()`
+* **Lógica:** Imprime um bloco de texto estático com as informações de ajuda.
+* **Funções Auxiliares Utilizadas:** Nenhuma.
 
-Exemplos de como os comandos individuais são implementados.
+### `exit`
 
-#### `void comando_cd(char* caminho, no** diretorio_atual, no* raiz)`
-
-**Propósito:** Alterar o diretório de trabalho atual.
-
-**Como funciona:**
-
-  * **Casos Especiais:** Primeiro, verifica casos como `cd ..` (navega para o `pai`), `cd /` (navega para a `raiz`) ou `cd` sem argumentos (também vai para a raiz).
-  * **Busca no Diretório:** Para um nome de diretório, ele chama `encontrar_diretorio` para procurar um filho do diretório atual que seja uma pasta com o nome correspondente.
-  * **Atualização:** Se um diretório válido for encontrado, o ponteiro `*diretorio_atual` é atualizado para apontar para esse novo nó.
-  * **Feedback:** Se o diretório não for encontrado, uma mensagem de erro é exibida, sugerindo nomes similares, se houver (`mostrar_alternativas`).
-
-#### `void comando_mkdir(char* nome_pasta, no* diretorio_atual)`
-
-**Propósito:** Criar uma nova pasta (nó do tipo `PASTA`) no diretório atual.
-
-**Como funciona:**
-
-1.  **Validação:** Realiza várias verificações no nome fornecido: se não é nulo, se não contém caracteres inválidos (`/`, `\`, `*`, etc.) e se já não existe um arquivo ou pasta com o mesmo nome.
-2.  **Criação do Nó:** Se a validação for bem-sucedida, chama `criar_no` para alocar memória e inicializar um novo nó com `tipo = PASTA`.
-3.  **Inserção na Árvore:** Adiciona o novo nó à lista de filhos do diretório atual. Ele é inserido como `primeiroFilho` se a lista estiver vazia, ou como `proxIrmao` do último filho existente.
-
-### 4\. Salvando as Alterações
-
-Para garantir a persistência dos dados entre as sessões, a estrutura da árvore em memória pode ser salva de volta no arquivo de texto.
-
-#### `void salvar_arvore_no_arquivo(no* raiz, const char* nome_arquivo)`
-
-**Propósito:** Escrever a estrutura da árvore de volta em um arquivo de texto, onde cada nó corresponde a uma linha com seu caminho completo.
-
-**Como funciona:**
-
-1.  **Abertura do Arquivo:** Abre o arquivo de saída em modo de escrita (`"w"`), o que apaga qualquer conteúdo anterior.
-2.  **Chamada Recursiva:** Inicia o processo de escrita chamando a função auxiliar `escrever_caminhos_recursivo`, começando pela raiz.
-
-#### `void escrever_caminhos_recursivo(no* no_atual, char* caminho_atual, FILE* arquivo)`
-
-**Propósito:** Percorrer a árvore recursivamente e escrever o caminho completo de cada nó no arquivo.
-
-**Como funciona:**
-
-1.  **Travessia Pre-Order:** A função opera em uma lógica de travessia pré-ordem.
-2.  **Construção do Caminho:** Para cada nó visitado, ela constrói a string do seu caminho completo.
-3.  **Escrita no Arquivo:** `fprintf` é usado para escrever o caminho completo do nó atual no arquivo, seguido por uma quebra de linha `\n`.
-4.  **Recursão:** A função então se chama recursivamente para todos os filhos do nó atual, passando o caminho atualizado para que os filhos possam construir seus próprios caminhos completos.
-
-### Considerações Adicionais
-
-  - **Funções `*_custom`:** O código implementa suas próprias versões de funções de string insensíveis a maiúsculas e minúsculas (`strcasecmp_custom`, `stristr_custom`). Isso é feito para garantir a portabilidade e evitar a dependência da extensão `_POSIX_C_SOURCE` ou de bibliotecas não padrão em todos os compiladores.
-  - **Gerenciamento de Memória:** O código utiliza `malloc` e `strdup` para alocar memória dinamicamente. A função `liberar_no_recursivo` é crucial para liberar a memória de uma subárvore (usada em `rmdir`), e todas as alocações são cuidadosamente gerenciadas para evitar vazamentos de memória (memory leaks).
+* **Descrição:** Encerra a sessão do terminal e salva todas as alterações no arquivo de entrada.
+* **Função de Implementação:** A lógica é tratada diretamente dentro de `iniciar_terminal`.
+* **Lógica:** Ao detectar o comando "exit", o loop principal em `iniciar_terminal` é interrompido. Antes de sair, a função de salvamento é chamada.
+* **Funções Auxiliares Utilizadas:**
+    * `salvar_arvore_no_arquivo()`: Para escrever a estrutura de árvore atual de volta para o arquivo, garantindo a persistência dos dados.
