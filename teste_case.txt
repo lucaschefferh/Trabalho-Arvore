@@ -1,0 +1,10 @@
+ls
+cd meus documentos
+pwd
+cd ..
+cd ARQUIVOS E PROGRAMAS
+ls
+cd ..
+search MAIN
+search chrome
+exit
