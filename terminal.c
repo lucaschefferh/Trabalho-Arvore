@@ -227,6 +227,12 @@ void processar_comando(char* comando, no** diretorio_atual, no* raiz) {
         comando_help();
     } else if (strcmp(cmd, "search") == 0) {
         comando_search(arg, raiz);
+    } else if (strcmp(cmd, "rm") == 0) {
+        comando_rm(arg, *diretorio_atual);
+    } else if (strcmp(cmd, "mkdir") == 0) {
+        comando_mkdir(arg, *diretorio_atual);
+    } else if (strcmp(cmd, "clear") == 0) {
+        comando_clear();
     } else {
         printf("Comando '%s' nao reconhecido. Digite 'help' para ver comandos disponiveis.\n", cmd);
     }
@@ -344,6 +350,9 @@ void comando_help() {
     printf("  pwd          - Mostrar caminho atual\n");
     printf("  tree         - Mostrar arvore de diretorios\n");
     printf("  search <nome> - Buscar arquivo ou pasta pelo nome\n");
+    printf("  mkdir <pasta> - Criar nova pasta no diretorio atual\n");
+    printf("  rm <pasta>   - Remover pasta (somente pastas vazias ou com conteudo)\n");
+    printf("  clear        - Limpar a tela do terminal\n");
     printf("  help         - Mostrar esta ajuda\n");
     printf("  exit         - Sair do terminal\n");
 }
@@ -494,4 +503,184 @@ char* stristr_custom(const char* str, const char* substr) {
     }
     
     return NULL;
+}
+
+// Funcao para liberar memoria de um no e todos os seus filhos recursivamente
+void liberar_no_recursivo(no* no_para_remover) {
+    if (no_para_remover == NULL) {
+        return;
+    }
+    
+    // Primeiro, liberar todos os filhos recursivamente
+    no* filho = no_para_remover->primeiroFilho;
+    while (filho != NULL) {
+        no* proximo_filho = filho->proxIrmao;
+        liberar_no_recursivo(filho);
+        filho = proximo_filho;
+    }
+    
+    // Liberar o nome e o proprio no
+    if (no_para_remover->nome) {
+        free(no_para_remover->nome);
+    }
+    free(no_para_remover);
+}
+
+// Comando rm - removes a directory and all its contents recursively
+void comando_rm(char* nome_pasta, no* diretorio_atual) {
+    if (nome_pasta == NULL || strlen(nome_pasta) == 0) {
+        printf("Erro: Especifique o nome da pasta a ser removida.\n");
+        printf("Uso: rm <nome_da_pasta>\n");
+        return;
+    }
+    
+    // Remover espacos em branco no inicio e fim
+    while (*nome_pasta == ' ') nome_pasta++;
+    char* fim = nome_pasta + strlen(nome_pasta) - 1;
+    while (fim > nome_pasta && *fim == ' ') {
+        *fim = '\0';
+        fim--;
+    }
+    
+    if (strlen(nome_pasta) == 0) {
+        printf("Erro: Nome da pasta nao pode estar vazio.\n");
+        return;
+    }
+    
+    // Nao permitir remover diretorio atual ou pai
+    if (strcmp(nome_pasta, ".") == 0 || strcmp(nome_pasta, "..") == 0) {
+        printf("Erro: Nao e possivel remover '.' ou '..'.\n");
+        return;
+    }
+    
+    // Procurar a pasta no diretorio atual
+    no* filho = diretorio_atual->primeiroFilho;
+    no* anterior = NULL;
+    
+    while (filho != NULL) {
+        if (strcasecmp_custom(filho->nome, nome_pasta) == 0) {
+            // Verificar se e uma pasta
+            if (filho->tipo != PASTA) {
+                printf("Erro: '%s' nao e uma pasta. O comando rm remove apenas pastas.\n", nome_pasta);
+                return;
+            }
+            
+            // Remover o no da lista de filhos
+            if (anterior == NULL) {
+                // E o primeiro filho
+                diretorio_atual->primeiroFilho = filho->proxIrmao;
+            } else {
+                // Nao e o primeiro filho
+                anterior->proxIrmao = filho->proxIrmao;
+            }
+            
+            // Liberar memoria recursivamente
+            liberar_no_recursivo(filho);
+            
+            printf("Pasta '%s' removida com sucesso.\n", nome_pasta);
+            return;
+        }
+        
+        anterior = filho;
+        filho = filho->proxIrmao;
+    }
+    
+    // Se chegou ate aqui, a pasta nao foi encontrada
+    printf("Erro: Pasta '%s' nao encontrada no diretorio atual.\n", nome_pasta);
+    
+    // Mostrar sugestoes se houver pastas com nomes similares
+    printf("Pastas disponiveis:\n");
+    filho = diretorio_atual->primeiroFilho;
+    int encontrou_pastas = 0;
+    while (filho != NULL) {
+        if (filho->tipo == PASTA) {
+            printf("  %s/\n", filho->nome);
+            encontrou_pastas = 1;
+        }
+        filho = filho->proxIrmao;
+    }
+    
+    if (!encontrou_pastas) {
+        printf("  (nenhuma pasta encontrada)\n");
+    }
+}
+
+// Comando mkdir - cria uma nova pasta no diretorio atual
+void comando_mkdir(char* nome_pasta, no* diretorio_atual) {
+    if (nome_pasta == NULL || strlen(nome_pasta) == 0) {
+        printf("Erro: Especifique o nome da pasta a ser criada.\n");
+        printf("Uso: mkdir <nome_da_pasta>\n");
+        return;
+    }
+    
+    // Remover espacos em branco no inicio e fim
+    while (*nome_pasta == ' ') nome_pasta++;
+    char* fim = nome_pasta + strlen(nome_pasta) - 1;
+    while (fim > nome_pasta && *fim == ' ') {
+        *fim = '\0';
+        fim--;
+    }
+    
+    if (strlen(nome_pasta) == 0) {
+        printf("Erro: Nome da pasta nao pode estar vazio.\n");
+        return;
+    }
+    
+    // Verificar se o nome contem caracteres invalidos
+    for (int i = 0; nome_pasta[i] != '\0'; i++) {
+        if (nome_pasta[i] == '/' || nome_pasta[i] == '\\' || nome_pasta[i] == ':' || 
+            nome_pasta[i] == '*' || nome_pasta[i] == '?' || nome_pasta[i] == '"' || 
+            nome_pasta[i] == '<' || nome_pasta[i] == '>' || nome_pasta[i] == '|') {
+            printf("Erro: Nome da pasta contem caracteres invalidos.\n");
+            printf("Caracteres nao permitidos: / \\ : * ? \" < > |\n");
+            return;
+        }
+    }
+    
+    // Nao permitir nomes especiais
+    if (strcmp(nome_pasta, ".") == 0 || strcmp(nome_pasta, "..") == 0) {
+        printf("Erro: Nao e possivel criar pasta com nome '.' ou '..'.\n");
+        return;
+    }
+    
+    // Verificar se ja existe uma pasta ou arquivo com o mesmo nome
+    no* filho = diretorio_atual->primeiroFilho;
+    while (filho != NULL) {
+        if (strcasecmp_custom(filho->nome, nome_pasta) == 0) {
+            if (filho->tipo == PASTA) {
+                printf("Erro: Ja existe uma pasta com o nome '%s'.\n", nome_pasta);
+            } else {
+                printf("Erro: Ja existe um arquivo com o nome '%s'.\n", nome_pasta);
+            }
+            return;
+        }
+        filho = filho->proxIrmao;
+    }
+    
+    // Criar o novo no (pasta)
+    no* nova_pasta = criar_no(nome_pasta, PASTA, diretorio_atual);
+    if (nova_pasta == NULL) {
+        printf("Erro: Falha ao criar a pasta '%s'.\n", nome_pasta);
+        return;
+    }
+    
+    // Adicionar a nova pasta como filho do diretorio atual
+    if (diretorio_atual->primeiroFilho == NULL) {
+        // E o primeiro filho
+        diretorio_atual->primeiroFilho = nova_pasta;
+    } else {
+        // Adicionar no final da lista de irmaos
+        no* ultimo_filho = diretorio_atual->primeiroFilho;
+        while (ultimo_filho->proxIrmao != NULL) {
+            ultimo_filho = ultimo_filho->proxIrmao;
+        }
+        ultimo_filho->proxIrmao = nova_pasta;
+    }
+    
+    printf("Pasta '%s' criada com sucesso.\n", nome_pasta);
+}
+
+// Comando clear - limpa a tela do terminal
+void comando_clear() {
+    printf("\033[2J\033[H");
 }

@@ -11,6 +11,11 @@ int main(){
     if (raiz != NULL) {
         // Iniciar o simulador de terminal
         iniciar_terminal(raiz);
+        
+        // Liberar toda a memória alocada antes de terminar
+        printf("Liberando memoria...\n");
+        liberar_no_recursivo(raiz);
+        printf("Memoria liberada com sucesso!\n");
     } else {
         printf("Erro ao construir a árvore.\n");
         return 1;

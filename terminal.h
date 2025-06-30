@@ -38,6 +38,9 @@ void comando_cd(char* caminho, no** diretorio_atual, no* raiz);
 void comando_pwd(no* diretorio_atual);
 void comando_tree(no* diretorio_atual);
 void comando_search(char* nome, no* raiz);
+void comando_rm(char* nome_pasta, no* diretorio_atual);
+void comando_mkdir(char* nome_pasta, no* diretorio_atual);
+void comando_clear();
 void comando_help();
 
 // ===== FUNCOES AUXILIARES =====
@@ -45,6 +48,7 @@ no* encontrar_diretorio(no* base, char* nome);
 char* obter_caminho_completo(no* no_atual);
 void mostrar_alternativas(no* diretorio_atual, char* nome_parcial);
 void buscar_recursivo(no* no_atual, char* nome_procurado, int* contador);
+void liberar_no_recursivo(no* no_para_remover);
 int strcasecmp_custom(const char* s1, const char* s2);
 int strncasecmp_custom(const char* s1, const char* s2, size_t n);
 char* stristr_custom(const char* str, const char* substr);
