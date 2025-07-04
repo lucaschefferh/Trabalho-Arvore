@@ -70,3 +70,5 @@ void liberar_no_recursivo(no* no_para_remover); // libera recursivamente a memó
 int strcasecmp_custom(const char* s1, const char* s2); // compara duas strings ignorando maiúsculas/minúsculas
 int strncasecmp_custom(const char* s1, const char* s2, size_t n); // compara n caracteres de duas strings ignorando maiúsculas/minúsculas
 char* stristr_custom(const char* str, const char* substr); // busca uma substring em uma string ignorando maiúsculas/minúsculas
+
+
