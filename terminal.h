@@ -1,3 +1,5 @@
+
+
 // enumeração que define os tipos de nós na árvore
 typedef enum{
     PASTA,    //representa um diretório
@@ -25,9 +27,44 @@ typedef struct no{
     struct no* proxIrmao;        // ponteiro para o próximo irmão
     struct no* pai;              // ponteiro para o nó pai
 }no;
+
+
 // alias para facilitar o uso da estrutura da árvore
 typedef no* Arvore;
+// comandos solicitados ----------------------------------------------------------------------------------
+// lista o conteúdo do diretório atual
+void comando_ls(no* diretorio_atual);
+// muda para um diretório especificado
+void comando_cd(char* caminho, no** diretorio_atual, no* raiz);
+// busca arquivos ou pastas pelo nome na árvore
+void comando_search(char* nome, no* raiz);
+// remove um arquivo do diretório atual
+void comando_rm(char* arquivo, no* diretorio_atual);
+// cria uma nova pasta no diretório atual
+void comando_mkdir(char* pasta, no* diretorio_atual);
+// limpa a tela do terminal
+void comando_clear();
+// exibe a lista de comandos disponíveis
+void comando_help();
+// mostra sugestões de diretórios quando um não é encontrado
+void mostrar_alternativas(no* diretorio_atual, char* nome_parcial);
+
+
+// comandos extras ----------------------------------------------------------------------------------------
+// cria um novo arquivo no diretório atual
+void comando_touch(char* arquivo, no* diretorio_atual);
+// exibe a estrutura da árvore a partir do diretório atual
+void comando_tree(no* diretorio_atual);
+// mostra o caminho completo do diretório atual
+void comando_pwd(no* diretorio_atual);
+// remove uma pasta (e todo seu conteúdo) do diretório atual
+void comando_rmdir(char* pasta, no* diretorio_atual);
+// mostra o histórico de comandos executados
+void comando_history(char* arg, HistoricoComandos* historico);
 // função para criar um novo nó na árvore
+
+
+// funçoes ------------------------------------------------------------------------------------------------
 no* criar_no(const char* nome, tipoNo tipo, no* pai);
 // processa um caminho de arquivo/pasta e adiciona à árvore
 void processar_caminho(no *raiz, char *caminho);
@@ -45,53 +82,16 @@ void escrever_caminhos_recursivo(no* no_atual, char* caminho_atual, FILE* arquiv
 void iniciar_terminal(no* raiz, const char* arquivo_entrada);
 // processa e executa comandos digitados pelo usuário
 void processar_comando(char* comando, no** diretorio_atual, no* raiz, HistoricoComandos* historico);
-// lista o conteúdo do diretório atual
-void comando_ls(no* diretorio_atual);
-// muda para um diretório especificado
-void comando_cd(char* caminho, no** diretorio_atual, no* raiz);
-// mostra o caminho completo do diretório atual
-void comando_pwd(no* diretorio_atual);
-// exibe a estrutura da árvore a partir do diretório atual
-void comando_tree(no* diretorio_atual);
-// busca arquivos ou pastas pelo nome na árvore
-void comando_search(char* nome, no* raiz);
-// remove um arquivo do diretório atual
-void comando_rm(char* arquivo, no* diretorio_atual);
-
-// remove uma pasta (e todo seu conteúdo) do diretório atual
-void comando_rmdir(char* pasta, no* diretorio_atual);
-
-// cria uma nova pasta no diretório atual
-void comando_mkdir(char* pasta, no* diretorio_atual);
-
-// cria um novo arquivo no diretório atual
-void comando_touch(char* arquivo, no* diretorio_atual);
-
-// limpa a tela do terminal
-void comando_clear();
-
-// exibe a lista de comandos disponíveis
-void comando_help();
-
-// mostra o histórico de comandos executados
-void comando_history(char* arg, HistoricoComandos* historico);
 // adiciona um comando ao histórico
 void adicionar_ao_historico(HistoricoComandos* historico, const char* comando);
-
 // inicializa a estrutura do histórico de comandos
 void inicializar_historico(HistoricoComandos* historico);
-
 // retorna o prompt colorido com o caminho atual
 char* obter_prompt_colorido(no* diretorio_atual);
-
 // encontra um diretório filho pelo nome
 no* encontrar_diretorio(no* base, char* nome);
-
 // obtém o caminho completo de um nó
 char* obter_caminho_completo(no* no_atual);
-// mostra sugestões de diretórios quando um não é encontrado
-void mostrar_alternativas(no* diretorio_atual, char* nome_parcial);
-
 // função auxiliar para busca recursiva na árvore
 void buscar_recursivo(no* no_atual, char* nome_procurado, int* contador);
 // libera recursivamente a memória de um nó e seus filhos
@@ -100,6 +100,5 @@ void liberar_no_recursivo(no* no_para_remover);
 int strcasecmp_custom(const char* s1, const char* s2);
 // compara n caracteres de duas strings ignorando maiúsculas/minúsculas
 int strncasecmp_custom(const char* s1, const char* s2, size_t n);
-
 // busca uma substring em uma string ignorando maiúsculas/minúsculas
 char* stristr_custom(const char* str, const char* substr);
